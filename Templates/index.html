@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RootDown: The Drought-Tolerant Lawn Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+        }
+        
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c5282;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .message-bar {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: bold;
+            min-height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .lawn-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        #lawn-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 120px);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .lawn-tile {
+            width: 120px;
+            height: 120px;
+            border: 3px solid #a0aec0;
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .lawn-tile:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        
+        .lawn-tile.selected {
+            border-color: #f6e05e;
+            border-width: 5px;
+            box-shadow: 0 0 20px rgba(246, 224, 94, 0.5);
+        }
+        
+        .lawn-tile.sinkhole {
+            background: radial-gradient(circle, #8b4513 0%, #654321 100%);
+            animation: sinkhole-pulse 2s infinite;
+        }
+        
+        @keyframes sinkhole-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .plant-name {
+            font-weight: bold;
+            font-size: 0.9em;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        
+        .moisture-level {
+            font-size: 0.8em;
+            margin-bottom: 3px;
+        }
+        
+        .root-depth {
+            font-size: 0.7em;
+            opacity: 0.8;
+        }
+        
+        .health-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: rgba(0,0,0,0.2);
+        }
+        
+        .health-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #e53e3e, #f6ad55, #68d391);
+            transition: width 0.3s ease;
+        }
+        
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .control-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .control-panel h3 {
+            margin-bottom: 15px;
+            color: #2c5282;
+            text-align: center;
+            font-size: 1.3em;
+        }
+        
+        .button-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .action-button, .plant-button {
+            padding: 12px 16px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .action-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        #water-btn { 
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+        }
+        
+        #next-day-btn { 
+            background: linear-gradient(135deg, #f093fb, #f5576c);
+            color: white;
+        }
+        
+        #mow-btn { 
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+        
+        #reset-btn { 
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+        
+        .plant-button { 
+            background: linear-gradient(135deg, #a8edea, #fed6e3);
+            color: #333;
+            font-size: 0.9em;
+        }
+        
+        .plant-button:hover { 
+            background: linear-gradient(135deg, #d299c2, #fef9d7);
+        }
+        
+        .plant-button.native {
+            border: 2px solid #68d391;
+            background: linear-gradient(135deg, #c6f6d5, #9ae6b4);
+        }
+        
+        .settings-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+        }
+        
+        .setting-group {
+            margin-bottom: 15px;
+        }
+        
+        .setting-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #4a5568;
+        }
+        
+        .setting-group input, .setting-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+        
+        .setting-group input:focus, .setting-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .fertilizer-info {
+            font-size: 0.8em;
+            color: #718096;
+            margin-top: 5px;
+        }
+        
+        .high-score {
+            background: linear-gradient(135deg, #ffd89b, #19547b);
+            color: white;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            margin-top: 20px;
+        }
+        
+        .high-score-value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            #lawn-grid {
+                grid-template-columns: repeat(3, 100px);
+            }
+            
+            .lawn-tile {
+                width: 100px;
+                height: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="main-content">
+            <h1>🌱 RootDown: Drought-Tolerant Lawn Simulator</h1>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="day-counter">Day 1</div>
+                    <div class="stat-label">Days Survived</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="aquifer-level">100%</div>
+                    <div class="stat-label">Aquifer Level</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="score-display">0</div>
+                    <div class="stat-label">Current Score</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="water-used">0</div>
+                    <div class="stat-label">Water Used</div>
+                </div>
+            </div>
+            
+            <div class="message-bar" id="message-bar">
+                Welcome to RootDown! Build a drought-tolerant lawn without draining the aquifer.
+            </div>
+            
+            <div class="lawn-section">
+                <div id="lawn-grid"></div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="control-panel">
+                <h3>🎮 Game Actions</h3>
+                <div class="button-group">
+                    <button id="water-btn" class="action-button">💧 Water Lawn</button>
+                    <button id="mow-btn" class="action-button">✂️ Mow Lawn</button>
+                    <button id="next-day-btn" class="action-button">☀️ Next Day</button>
+                    <button id="reset-btn" class="action-button">🔄 New Game</button>
+                </div>
+                
+                <h3>🌿 Plant Selection</h3>
+                <div class="button-group">
+                    <button class="plant-button" data-plant="St. Augustine">St. Augustine</button>
+                    <button class="plant-button" data-plant="Bermuda">Bermuda</button>
+                    <button class="plant-button" data-plant="Buffalo">Buffalo</button>
+                    <button class="plant-button" data-plant="Zoysia">Zoysia</button>
+                    <button class="plant-button" data-plant="Fescue">Fescue</button>
+                    <button class="plant-button native" data-plant="Wildflowers">🌼 Wildflowers</button>
+                    <button class="plant-button native" data-plant="Native Grasses">🌾 Native Grasses</button>
+                    <button class="plant-button native" data-plant="Succulents">🌵 Succulents</button>
+                    <button class="plant-button" data-plant="Dirt">Clear to Dirt</button>
+                </div>
+                
+                <div class="settings-section">
+                    <h3>⚙️ Lawn Management</h3>
+                    
+                    <div class="setting-group">
+                        <label for="mowing-height">Mowing Height (inches)</label>
+                        <input type="range" id="mowing-height" min="1" max="5" step="0.5" value="2.5">
+                        <div id="height-display">2.5 inches</div>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label for="watering-schedule">Watering Schedule (times/week)</label>
+                        <input type="range" id="watering-schedule" min="0" max="7" step="1" value="3">
+                        <div id="schedule-display">3 times per week</div>
+                    </div>
+                    
+                    <div class="setting-group">
+                        <label for="fertilizer-type">Fertilizer Type</label>
+                        <select id="fertilizer-type">
+                            <option value="None">None (0 cost)</option>
+                            <option value="Organic">Organic (+20% efficiency, +30% root growth)</option>
+                            <option value="Slow-Release">Slow-Release (+10% efficiency, +20% root growth)</option>
+                            <option value="Drought-Resistant">Drought-Resistant (+40% efficiency, +10% root growth)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="high-score">
+                    <div class="stat-label">🏆 High Score</div>
+                    <div class="high-score-value" id="high-score-display">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const lawnGrid = document.getElementById('lawn-grid');
+            const dayCounter = document.getElementById('day-counter');
+            const aquiferLevel = document.getElementById('aquifer-level');
+            const scoreDisplay = document.getElementById('score-display');
+            const waterUsed = document.getElementById('water-used');
+            const highScoreDisplay = document.getElementById('high-score-display');
+            const messageBar = document.getElementById('message-bar');
+
+            // --- State ---
+            let selectedTileIndex = null;
+            const PLANT_COLORS = {
+                "Dirt": "#a1887f",
+                "St. Augustine": "#4caf50",
+                "Bermuda": "#2e7d32",
+                "Buffalo": "#66bb6a",
+                "Zoysia": "#8bc34a",
+                "Fescue": "#4caf50",
+                "Wildflowers": "#ffeb3b",
+                "Native Grasses": "#9ccc65",
+                "Succulents": "#a5d6a7",
+                "Dead": "#5d4037"
+            };
+
+            // --- API Communication ---
+            async function postAction(endpoint, body = {}) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    });
+                    const state = await response.json();
+                    renderGameState(state);
+                } catch (error) {
+                    console.error('Error performing action:', error);
+                    messageBar.textContent = "Error connecting to server.";
+                }
+            }
+
+            // --- Rendering ---
+            function renderGameState(state) {
+                dayCounter.textContent = `Day ${state.day}`;
+                aquiferLevel.textContent = `${state.aquifer_level}%`;
+                scoreDisplay.textContent = state.score;
+                waterUsed.textContent = state.total_water_used;
+                highScoreDisplay.textContent = state.high_score;
+                messageBar.textContent = state.message;
+
+                lawnGrid.innerHTML = '';
+                state.lawn_grid.forEach((tile, index) => {
+                    const tileEl = document.createElement('div');
+                    tileEl.classList.add('lawn-tile');
+                    
+                    // Check if this position has a sinkhole
+                    if (state.sinkholes.includes(index)) {
+                        tileEl.classList.add('sinkhole');
+                        tileEl.style.backgroundImage = 'url(/assets/tiles/sinkhole.png)';
+                        tileEl.style.backgroundSize = 'cover';
+                    } else {
+                        // Use grass.png as base tile for all plants
+                        tileEl.style.backgroundImage = 'url(/assets/tiles/grass.png)';
+                        tileEl.style.backgroundSize = 'cover';
+                        tileEl.style.backgroundColor = PLANT_COLORS[tile.plant_type] || '#ccc'; // Fallback color
+                    }
+                    
+                    tileEl.dataset.index = index;
+                    tileEl.innerHTML = `
+                        <div class="plant-name">${tile.plant_type}</div>
+                        <div class="moisture-level">💧 ${Math.round(tile.moisture)}%</div>
+                        <div class="root-depth">🌱 Roots: ${Math.round(tile.root_depth)}"</div>
+                        <div class="health-bar">
+                            <div class="health-fill" style="width: ${tile.health}%"></div>
+                        </div>
+                    `;
+                    
+                    if (index === selectedTileIndex) {
+                        tileEl.classList.add('selected');
+                    }
+                    lawnGrid.appendChild(tileEl);
+                });
+
+                // Update settings displays
+                document.getElementById('height-display').textContent = `${state.lawn_settings.mowing_height} inches`;
+                document.getElementById('schedule-display').textContent = `${state.lawn_settings.watering_schedule} times per week`;
+                document.getElementById('mowing-height').value = state.lawn_settings.mowing_height;
+                document.getElementById('watering-schedule').value = state.lawn_settings.watering_schedule;
+                document.getElementById('fertilizer-type').value = state.lawn_settings.fertilizer_type;
+
+                if (state.game_over) {
+                    document.querySelectorAll('.action-button, .plant-button').forEach(btn => {
+                        if (btn.id !== 'reset-btn') btn.disabled = true;
+                    });
+                } else {
+                     document.querySelectorAll('.action-button, .plant-button').forEach(btn => btn.disabled = false);
+                }
+            }
+
+            // --- Event Listeners ---
+            document.getElementById('water-btn').addEventListener('click', () => postAction('/water'));
+            document.getElementById('mow-btn').addEventListener('click', () => postAction('/mow'));
+            document.getElementById('next-day-btn').addEventListener('click', () => postAction('/nextday'));
+            document.getElementById('reset-btn').addEventListener('click', () => postAction('/reset'));
+            
+            // Settings updates
+            document.getElementById('mowing-height').addEventListener('input', (e) => {
+                document.getElementById('height-display').textContent = `${e.target.value} inches`;
+                postAction('/settings', { mowing_height: parseFloat(e.target.value) });
+            });
+            
+            document.getElementById('watering-schedule').addEventListener('input', (e) => {
+                document.getElementById('schedule-display').textContent = `${e.target.value} times per week`;
+                postAction('/settings', { watering_schedule: parseInt(e.target.value) });
+            });
+            
+            document.getElementById('fertilizer-type').addEventListener('change', (e) => {
+                postAction('/settings', { fertilizer_type: e.target.value });
+            });
+            
+            lawnGrid.addEventListener('click', (event) => {
+                const tile = event.target.closest('.lawn-tile');
+                if (tile) {
+                    const index = parseInt(tile.dataset.index);
+                    if (selectedTileIndex === index) {
+                        selectedTileIndex = null; // Deselect
+                    } else {
+                        selectedTileIndex = index;
+                    }
+                    // Re-render to show selection
+                    document.querySelectorAll('.lawn-tile').forEach((el, i) => {
+                         el.classList.toggle('selected', i === selectedTileIndex);
+                    });
+                }
+            });
+
+            document.querySelectorAll('.plant-button').forEach(button => {
+                button.addEventListener('click', () => {
+                    if (selectedTileIndex !== null) {
+                        const plantName = button.dataset.plant;
+                        postAction('/plant', { tile_index: selectedTileIndex, plant_name: plantName });
+                        selectedTileIndex = null; // Deselect after planting
+                    } else {
+                        messageBar.textContent = "Select a lawn tile first!";
+                    }
+                });
+            });
+
+            // --- Initial Load ---
+            async function initializeGame() {
+                const response = await fetch('/gamestate');
+                const state = await response.json();
+                renderGameState(state);
+            }
+
+            initializeGame();
+        });
+    </script>
+</body>
+</html>
