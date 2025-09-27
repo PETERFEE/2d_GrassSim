@@ -124,20 +124,29 @@ class GameState:
 
 
 class PixelArtRenderer:
-    def __init__(self, screen):
+    def __init__(self, screen, game_state):
         self.screen = screen
+        self.game_state = game_state
         self.grass_tile = self.load_grass_tile()
 
     def load_grass_tile(self):
-        """Load the grass.png tile image."""
+        """Load grass texture based on current day number. Cycles through grass5.png, grass4.png, etc."""
+        # Calculate which grass texture to use based on day number
+        # Day 1 = grass5.png, Day 2 = grass4.png, Day 3 = grass3.png, etc.
+        grass_number = 5 - ((self.game_state.day - 1) % 5)  # Cycles through 5,4,3,2,1
+        
         try:
-            return pygame.image.load('assets/tiles/grass.png')
+            return pygame.image.load(f'assets/tiles/grass{grass_number}.png')
         except pygame.error:
-            print("Warning: Could not load grass.png, using fallback colored rectangle")
+            print(f"Warning: Could not load grass{grass_number}.png, using fallback colored rectangle")
             # Create a fallback colored surface
             surface = pygame.Surface((TILE_SIZE, TILE_SIZE))
             surface.fill(COLORS['grass'])
             return surface
+
+    def refresh_grass_texture(self):
+        """Reload the grass texture when day changes"""
+        self.grass_tile = self.load_grass_tile()
 
     def draw_pixel_character(self, x: int, y: int, color: Tuple[int, int, int]):
         """Draw a simple pixel art character"""
@@ -254,7 +263,7 @@ class Game:
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("RootDown Valley - Drought-Tolerant Farming")
         self.state = GameState()
-        self.renderer = PixelArtRenderer(self.screen)
+        self.renderer = PixelArtRenderer(self.screen, self.state)
 
     def handle_input(self):
         """Handle player input for continuous movement"""
@@ -303,9 +312,9 @@ class Game:
                 elif event.key == pygame.K_SPACE:
                     self.perform_action()
 
-                # Next day (for debugging)
+                # Day management controls
                 elif event.key == pygame.K_n:
-                    self.next_day()
+                    self.next_day()  # Next day (single day advance)
 
     def perform_action(self):
         """Perform action based on selected tool"""
@@ -423,11 +432,18 @@ class Game:
         return int(base_loss * drought_tolerance.get(crop.type, 1.0))
 
     def update_time(self):
-        """Update the in-game time. 1 real second = 1 in-game minute."""
-        self.state.time_of_day += 1  # Advance one minute per frame (at 60fps)
+        """Update the in-game time. Slower clock - 1 real minute = 1 in-game minute."""
+        # Only advance time every other frame to slow it down by half
+        if hasattr(self, '_time_counter'):
+            self._time_counter += 1
+        else:
+            self._time_counter = 0
+            
+        if self._time_counter % 6 == 0:  # Advance time every 6 frames (10x slower)
+            self.state.time_of_day += 1  # Advance one minute
 
-        # Day ends at 2:00 AM (26 hours * 60 minutes)
-        if self.state.time_of_day >= 26 * 60:
+        # Day ends at midnight (24 hours * 60 minutes = 1440 minutes)
+        if self.state.time_of_day >= 24 * 60:
             self.next_day()
 
     def next_day(self):
@@ -435,6 +451,9 @@ class Game:
         self.state.day += 1
         self.state.time_of_day = 360  # Reset time to 6:00 AM
         self.state.player.energy = 100
+
+        # Refresh grass texture for the new day
+        self.renderer.refresh_grass_texture()
 
         weather_roll = random.randint(1, 10)
         if weather_roll <= 6:
@@ -510,7 +529,7 @@ class Game:
             text = self.state.small_font.render(seed, True, color)
             self.screen.blit(text, (10 + i * 80, 55))
 
-        instructions = ["WASD/Arrows: Move", "Space: Use Tool"]
+        instructions = ["WASD/Arrows: Move", "Space: Use Tool", "N: Next Day"]
         for i, instruction in enumerate(instructions):
             text = self.state.small_font.render(instruction, True, COLORS['ui_text'])
             self.screen.blit(text, (SCREEN_WIDTH - 200, 10 + i * 20))
