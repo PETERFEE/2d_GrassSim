@@ -10,11 +10,11 @@ from typing import List, Dict, Tuple, Optional
 pygame.init()
 
 # Constants
-SCREEN_WIDTH = 1024
-SCREEN_HEIGHT = 768
-TILE_SIZE = 32
-GRID_WIDTH = SCREEN_WIDTH // TILE_SIZE
-GRID_HEIGHT = SCREEN_HEIGHT // TILE_SIZE
+TILE_SIZE = 64
+GRID_WIDTH = 10
+GRID_HEIGHT = 10
+SCREEN_WIDTH = TILE_SIZE * GRID_WIDTH
+SCREEN_HEIGHT = TILE_SIZE * GRID_HEIGHT
 
 # Colors (Pixel Art Style)
 COLORS = {
@@ -42,11 +42,6 @@ class CropType(Enum):
     DROUGHT_GRASS = 5
 
 
-class ToolType(Enum):
-    HOE = 1
-    WATERING_CAN = 2
-    SEEDS = 3
-    HARVEST = 4
 
 
 class WeatherType(Enum):
@@ -76,10 +71,9 @@ class Player:
     x: float
     y: float
     inventory: Dict[str, int]
-    money: int
     energy: int
-    selected_tool: ToolType
-    selected_seed: CropType
+    # selected_tool: ToolType
+    # selected_seed: CropType
 
     def __init__(self):
         self.x = SCREEN_WIDTH // 2
@@ -96,10 +90,8 @@ class Player:
             'native_flowers': 0,
             'drought_grass': 0
         }
-        self.money = 100
+        
         self.energy = 100
-        self.selected_tool = ToolType.HOE
-        self.selected_seed = CropType.TOMATO
 
 
 class GameState:
@@ -121,6 +113,9 @@ class GameState:
         self.total_water_used = 0
         self.native_plant_bonus = 0
         self.drought_tolerance_bonus = 0
+
+        # UI state
+        self.show_timer = True
 
 
 class PixelArtRenderer:
@@ -268,8 +263,6 @@ class Game:
     def handle_input(self):
         """Handle player input for continuous movement"""
         keys = pygame.key.get_pressed()
-
-        # Character movement
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.state.player.x = max(0, self.state.player.x - 2)
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
@@ -284,92 +277,20 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.state.running = False
-
             elif event.type == pygame.KEYDOWN:
-                # Tool selection
-                if event.key == pygame.K_1:
-                    self.state.player.selected_tool = ToolType.HOE
-                elif event.key == pygame.K_2:
-                    self.state.player.selected_tool = ToolType.WATERING_CAN
-                elif event.key == pygame.K_3:
-                    self.state.player.selected_tool = ToolType.SEEDS
-                elif event.key == pygame.K_4:
-                    self.state.player.selected_tool = ToolType.HARVEST
-
-                # Seed selection
-                elif event.key == pygame.K_q:
-                    self.state.player.selected_seed = CropType.TOMATO
-                elif event.key == pygame.K_e:
-                    self.state.player.selected_seed = CropType.CORN
-                elif event.key == pygame.K_r:
-                    self.state.player.selected_seed = CropType.CARROT
-                elif event.key == pygame.K_t:
-                    self.state.player.selected_seed = CropType.NATIVE_FLOWERS
-                elif event.key == pygame.K_y:
-                    self.state.player.selected_seed = CropType.DROUGHT_GRASS
-
-                # Action key
-                elif event.key == pygame.K_SPACE:
-                    self.perform_action()
-
-                # Day management controls
-                elif event.key == pygame.K_n:
+                # Day management controls only
+                if event.key == pygame.K_n:
                     self.next_day()  # Next day (single day advance)
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = event.pos
+                timer_x = 10 + 1 * 150
+                timer_y = 10
+                timer_w = 140
+                timer_h = 20
+                if timer_x <= mouse_x <= timer_x + timer_w and timer_y <= mouse_y <= timer_y + timer_h:
+                    self.state.show_timer = not self.state.show_timer
 
-    def perform_action(self):
-        """Perform action based on selected tool"""
-        # Center of the player for more accurate tile selection
-        player_center_x = self.state.player.x + TILE_SIZE / 2
-        player_center_y = self.state.player.y + TILE_SIZE / 2
-
-        grid_x = int(player_center_x // TILE_SIZE)
-        grid_y = int(player_center_y // TILE_SIZE)
-
-        if 0 <= grid_x < GRID_WIDTH and 0 <= grid_y < GRID_HEIGHT:
-            tile = self.state.farm_grid[grid_y][grid_x]
-
-            if self.state.player.selected_tool == ToolType.HOE:
-                if tile.type == CropType.NONE:
-                    # You can add a visual indicator for tilled soil here if desired
-                    self.state.player.energy -= 5
-
-            elif self.state.player.selected_tool == ToolType.WATERING_CAN:
-                if tile.type != CropType.NONE and tile.water_level < 100:
-                    tile.water_level = min(100, tile.water_level + 20)
-                    self.state.aquifer_level = max(0, self.state.aquifer_level - 5)
-                    self.state.total_water_used += 5
-                    self.state.player.energy -= 3
-
-            elif self.state.player.selected_tool == ToolType.SEEDS:
-                seed_name = f"{self.state.player.selected_seed.name.lower()}_seeds"
-                # Check if soil is tilled (for now, just check if it's empty)
-                if tile.type == CropType.NONE and self.state.player.inventory.get(seed_name, 0) > 0:
-                    tile.type = self.state.player.selected_seed
-                    tile.planted_day = self.state.day
-                    tile.growth_stage = 0
-                    tile.water_level = 50
-                    # NEW: Set health based on crop type
-                    if tile.type == CropType.DROUGHT_GRASS:
-                        tile.health = 7  # Grass uses 7-stage health
-                    else:
-                        tile.health = 100  # Other crops use 100-point health
-                    self.state.player.inventory[seed_name] -= 1
-                    self.state.player.energy -= 2
-
-            elif self.state.player.selected_tool == ToolType.HARVEST:
-                if tile.type != CropType.NONE and tile.growth_stage >= 3:
-                    crop_name = tile.type.name.lower()
-                    if not crop_name.endswith('s'):
-                        crop_name += 's'  # Ensure plural for inventory keys
-
-                    if crop_name == "native_flowerss":  # Handle pluralization edge case
-                        crop_name = "native_flowers"
-
-                    self.state.player.inventory[crop_name] += 1
-                    self.state.player.money += self.get_crop_value(tile.type)
-                    # Reset the tile to a default state
-                    self.state.farm_grid[grid_y][grid_x] = Crop()
-                    self.state.player.energy -= 1
+    # perform_action removed
 
     def get_crop_value(self, crop_type: CropType) -> int:
         """Get the value of a harvested crop"""
@@ -476,7 +397,7 @@ class Game:
                            crop.type in [CropType.NATIVE_FLOWERS, CropType.DROUGHT_GRASS])
         native_bonus = native_crops * 15
         water_penalty = self.state.total_water_used * 2
-        self.state.score = max(0, base_score + self.state.player.money + health_bonus + native_bonus - water_penalty)
+        self.state.score = max(0, base_score + health_bonus + native_bonus - water_penalty)
 
     def draw(self):
         """Draw the game"""
@@ -493,46 +414,51 @@ class Game:
         self.draw_ui()
         pygame.display.flip()
 
+
     def draw_ui(self):
         """Draw the game UI"""
         ui_rect = pygame.Rect(0, 0, SCREEN_WIDTH, 80)
         pygame.draw.rect(self.screen, COLORS['ui_bg'], ui_rect)
         pygame.draw.rect(self.screen, COLORS['ui_text'], ui_rect, 2)
 
-        # NEW: Format and display the time
+        # Format and display the time (conditionally)
         hour = (self.state.time_of_day // 60) % 24
         minute = self.state.time_of_day % 60
         time_str = f"Time: {hour:02d}:{minute:02d}"
 
         stats = [
             f"Day: {self.state.day}",
-            time_str,
-            f"Money: ${self.state.player.money}",
-            f"Energy: {self.state.player.energy}",
+            time_str if self.state.show_timer else "",
+            f"Water: {self.state.player.energy}",
             f"Weather: {self.state.weather.name}"
         ]
-
+        stat_y = 10
         for i, stat in enumerate(stats):
+            if stat == "":
+                continue
             text = self.state.small_font.render(stat, True, COLORS['ui_text'])
-            self.screen.blit(text, (10 + i * 150, 10))
+            self.screen.blit(text, (10 + i * 150, stat_y))
+        if self.state.show_timer:
+            timer_x = 10 + 1 * 150
+            timer_y = stat_y
+            timer_w = 140
+            timer_h = 20
+            pygame.draw.rect(self.screen, (200,200,200,40), (timer_x, timer_y, timer_w, timer_h), 1)
 
-        tools = ["1: Hoe", "2: Water", "3: Seeds", "4: Harvest"]
-        for i, tool in enumerate(tools):
-            color = COLORS['selected'] if i + 1 == self.state.player.selected_tool.value else COLORS['ui_text']
-            text = self.state.small_font.render(tool, True, color)
-            self.screen.blit(text, (10 + i * 100, 35))
-
-        seeds = ["Q:Tom", "E:Corn", "R:Carr", "T:Flow", "Y:Grass"]
-        seed_types = [CropType.TOMATO, CropType.CORN, CropType.CARROT, CropType.NATIVE_FLOWERS, CropType.DROUGHT_GRASS]
-        for i, seed in enumerate(seeds):
-            color = COLORS['selected'] if seed_types[i] == self.state.player.selected_seed else COLORS['ui_text']
-            text = self.state.small_font.render(seed, True, color)
-            self.screen.blit(text, (10 + i * 80, 55))
-
-        instructions = ["WASD/Arrows: Move", "Space: Use Tool", "N: Next Day"]
+        # Place instructions below the stats
+        instructions = [
+            "WASD/Arrows: Move",
+            "N: Next Day"
+        ]
+        instruction_start_y = stat_y + 30  # Start below stats
+        instruction_spacing = 32  # Spacing between instructions
         for i, instruction in enumerate(instructions):
+            # Move 'N: Next Day' a bit upward by reducing its offset
+            y_offset = instruction_start_y + i * instruction_spacing
+            if instruction == "N: Next Day":
+                y_offset -= 10  # Move up by 10 pixels
             text = self.state.small_font.render(instruction, True, COLORS['ui_text'])
-            self.screen.blit(text, (SCREEN_WIDTH - 200, 10 + i * 20))
+            self.screen.blit(text, (10, y_offset))
 
     def update(self):
         """Handle all logic updates for each frame."""
