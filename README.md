@@ -1,10 +1,10 @@
-# 🌱 RootDown: The Drought-Tolerant Lawn Simulator
+# 🌱 Bloom or Doom: The Water Conservation Lawn Maintenance Game!
 
-A comprehensive environmental education game that teaches water conservation through lawn management. Build the most drought-tolerant lawn possible while avoiding aquifer depletion!
+A comprehensive environmental education game that teaches water conservation through lawn management. Manage your lawn as responsibly as possible to maintain its healthy while avoiding aquifer depletion!
 
 ## 🎮 Game Overview
 
-RootDown is an interactive simulation where players manage a virtual lawn with realistic environmental mechanics. The goal is to create a healthy, drought-resistant lawn while conserving water resources and avoiding environmental disasters like sinkholes.
+Bloom or Doom is an interactive simulation where players manage a virtual lawn with realistic environmental mechanics. The goal is to create a healthy, drought-resistant lawn while conserving water resources and avoiding environmental disasters like sinkholes.
 
 ## 🌟 Key Features
 
@@ -135,4 +135,4 @@ Players will learn:
 
 ---
 
-*RootDown combines entertainment with environmental education, making water conservation fun and engaging!*
+*Bloom or Doom combines entertainment with environmental education, making water conservation fun and engaging!*
